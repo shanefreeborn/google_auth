@@ -66,7 +66,7 @@ ui <- fluidPage(
 # We're going to pass this uiFunc, not ui, to shinyApp(). If you're using
 # ui.R/server.R style files, that's fine too--just make this function the last
 # expression in your ui.R file.
-app_name <- "OAuth Test"
+app_name <- "Shane OAUTH Test"
 main_ui <- fluidPage(
   setBackgroundColor(
     color = c("#F1F1F1", "#F1F1F1"),
