@@ -1,6 +1,18 @@
 library(shiny)
 library(googleAuthR)
 library(httr)
+library(shiny)
+library(shinyjs)
+library(googleAuthR)
+library(googleID)
+library(pool)
+library(odbc)
+library(tidyverse)
+library(DT)
+library(DBI)
+library(glue)
+library(shinyWidgets)
+library(shinycssloaders)
 
 # OAuth setup --------------------------------------------------------
 
@@ -32,7 +44,7 @@ api <- oauth_endpoints("google")
 
 # Always request the minimal scope needed. For github, an empty scope
 # gives read-only access to public info
-scope <- "https://www.googleapis.com/auth/contacts"
+scope <- "https://www.googleapis.com/auth/userinfo.email"
 
 # Shiny -------------------------------------------------------------------
 
@@ -54,15 +66,57 @@ ui <- fluidPage(
 # We're going to pass this uiFunc, not ui, to shinyApp(). If you're using
 # ui.R/server.R style files, that's fine too--just make this function the last
 # expression in your ui.R file.
-uiFunc <- function(req) {
-  if (!has_auth_code(parseQueryString(req$QUERY_STRING))) {
-    url <- oauth2.0_authorize_url(api, app, scope = scope)
-    redirect <- sprintf("location.replace(\"%s\");", url)
-    tags$script(HTML(redirect))
-  } else {
-    ui
-  }
-}
+app_name <- "OAuth Test"
+main_ui <- fluidPage(
+  setBackgroundColor(
+    color = c("#F1F1F1", "#F1F1F1"),
+    gradient = "linear",
+    direction = "bottom"
+  ),
+  titlePanel(app_name),
+  windowTitle = app_name)
+  #tags$style(HTML(read_file("www/custom_css.css"))),
+  
+  fluidRow(
+    column(
+      wellPanel(
+        id = "global",
+        # textOutput("panel")
+        h4("App Controls")
+      ), # End of the Global Controls 
+      
+      # Create a panel for page specific controls
+      wellPanel(
+        id = "page_controls",
+        # textOutput("panel2")
+        h4("Page Controls")
+      ), # End of the Global Controls 
+      width = 3 # Width of the sidebar
+    ),
+    mainPanel(
+      id = "main_panel",
+      tabsetPanel(
+        tabPanel(
+          "Table", 
+          p("Testing"),
+          withSpinner(dataTableOutput("act_table"), image = "animated.gif", image.width = "300")
+        ),
+        tabPanel("panel 2", "two"),
+        tabPanel("Logout" ,
+                 useShinyjs(),
+                 sidebarLayout(
+                   sidebarPanel = sidebarPanel(
+                     h2(glue("Log out of {app_name}")),
+                     googleAuthUI("gauth_login"),
+                     # googleAuthUI("gauth_login"),
+                     textOutput("display_username")), 
+                   mainPanel = mainPanel()
+                 )
+        )
+      ), 
+      width = 9 # Width of the main panel
+    )
+  )
 
 server <- function(input, output, session) {
   params <- parseQueryString(isolate(session$clientData$url_search))
@@ -82,8 +136,96 @@ server <- function(input, output, session) {
   # TODO: check for success/failure here
   
   output$code <- renderText(content(resp, "text"))
+  
+  # Innovation database connection
+  af_connection <- function(){
+    
+    if(Sys.info()['sysname'] == "Darwin"){
+      dev <- TRUE
+      driver <- 'libtdsodbc.so'
+      db_connection <- dbConnect(
+        drv = odbc(),
+        Driver = driver,
+        Server = "10.220.3.147",
+        Database = "assessment",
+        UID = keyring::key_get("afuhsd_database_username", "assessment"),
+        PWD = keyring::key_get("afuhsd_database", "assessment"),
+        Port = 1433
+      )
+      
+      return(db_connection)
+    }else{
+      driver <- readLines("/opt/microsoft/current_driver.txt")
+      db_user <- Sys.getenv("db_user")
+      
+      db_password <- Sys.getenv("db_password")
+      
+      db_connection <- dbPool(
+        drv = odbc(),
+        Driver = driver,
+        Server = "10.220.3.147",
+        Database = "assessment",
+        UID = Sys.getenv("db_user"),
+        PWD = db_password,
+        Port = 1433
+      )
+      
+      return(db_connection)
+    }
+  }
+  
+  
+  
+  # DataTable options ----
+  dt_options <- list(
+    dom = 'Bfrtip', 
+    buttons = 
+      c('csv', 'excel', 'pdf', 'print', 'colvis')
+    # c('excel','pdf','print','colvis')
+    # list('colvis', list(extend = "csv", text = "CSV", filename = "data",
+    #                     exportOptions = list(
+    #                         modifier = list(page = "all")
+    #                     )))
+    , 
+    # initComplete = DT::JS("function(settings, json) {",
+    #                       "$(this.api().table().header()).css({'background-color': '#369BE9', 'color': '#fff'});",
+    #                       "}"), 
+    scrollX = TRUE, 
+    scrollY = '40vh', 
+    pageLength = 12000 #,
+    # scrollCollapse = TRUE
+  )
+  
+  
+  # Conditionally define the UI for logged in/logged out users.
+  
+  # This is the ui for the Login page -----
+  login_ui <- fluidPage(
+    windowTitle = app_name,
+    setBackgroundImage(src = "spotlight2.png"),
+    tags$style(HTML(read_file("www/custom_css.css"))),
+    fluidRow(
+      useShinyjs(),
+      column(3),
+      column(
+        6,
+        # Add logo image and center it.
+        HTML('<center><img src="logo_center2.png" alt="Agua Fria" width="65%" height="65%"></center>'),
+        fluidRow(
+          # inputPanel( # This can be uncommented to put a border and panel around login button
+          # googleAuthUI("gauth_login"),
+          googleAuthUI("gauth_login"),
+          h3(glue("{app_name}"), align = "center"),
+          textOutput("display_username"), # This is necessary for login to register and app to work
+          align = "center"
+          # )
+        )
+      ),
+      column(3)
+    )
+  ) # End of login ui definition
 }
 
 # Note that we're using uiFunc, not ui!
-shinyApp(uiFunc, server)
+shinyApp(main_ui, server)
 
