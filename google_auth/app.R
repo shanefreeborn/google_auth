@@ -24,7 +24,7 @@ if (interactive()) {
 app <- oauth_app("google",
                  key = "430836752453-nnlm5v7735sc6toloa2nf9sj1u3q09d1.apps.googleusercontent.com",
                  secret = "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",
-                 redirect_uri = "http://localhost:8100/"
+                 redirect_uri = "http://localhost:8100/" #Redirect URI needs to be added to Google. hardcoded for now
 )
 
 # Here I'm using a canned endpoint, but you can create with oauth_endpoint()
