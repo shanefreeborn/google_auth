@@ -15,14 +15,16 @@ if (interactive()) {
   APP_URL <- "http://localhost:8100/"
 } else {
   # deployed URL
-  APP_URL <- "https://innovation.aguafria.org/google_oauth_template/"
+  #APP_URL <- "https://innovation.aguafria.org/google_oauth_template/"
 }
 
 # Note that secret is not really secret, and it's fine to include inline
+# key and secret are under sfreeborn@aguafria.org test project. To create for a project,
+# it must be created in Google first
 app <- oauth_app("google",
-                 key = keyring::key_get("Google_Auth_Client_ID", "myShinyApp3"),
-                 secret = keyring::key_get("Google_Auth_Client_Secret", "myShinyApp3"),
-                 redirect_uri = APP_URL
+                 key = "430836752453-nnlm5v7735sc6toloa2nf9sj1u3q09d1.apps.googleusercontent.com",
+                 secret = "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",
+                 redirect_uri = "http://localhost:8100/"
 )
 
 # Here I'm using a canned endpoint, but you can create with oauth_endpoint()
@@ -30,7 +32,7 @@ api <- oauth_endpoints("google")
 
 # Always request the minimal scope needed. For github, an empty scope
 # gives read-only access to public info
-scope <- ""
+scope <- "https://www.googleapis.com/auth/contacts"
 
 # Shiny -------------------------------------------------------------------
 
@@ -76,8 +78,6 @@ server <- function(input, output, session) {
     cache = FALSE
   )
   
-  
-  
   resp <- GET("https://www.googleapis.com/userinfo/v2/%s", config(token = token))
   # TODO: check for success/failure here
   
@@ -86,3 +86,4 @@ server <- function(input, output, session) {
 
 # Note that we're using uiFunc, not ui!
 shinyApp(uiFunc, server)
+
